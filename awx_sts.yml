@@ -1,0 +1,174 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: awx
+  labels:
+    app: awx
+spec:
+  serviceName: "awx-hedless"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: awx
+  template:
+    metadata:
+      labels:
+        app: awx
+    spec:
+      containers:
+        - image: ansible/awx_web:latest
+          name: awx-web
+          imagePullPolicy: Always
+          env:
+            - name: DATABASE_USER
+              value: awx
+            - name: DATABASE_NAME
+              value: awx
+            - name: DATABASE_HOST
+              value: postgres 
+            - name: DATABASE_PORT
+              value: "31699"
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "awx-secrets"
+                  key: pg_password
+            - name: RABBITMQ_USER
+              value: mvne
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "awx-secrets"
+                  key: rabbitmq_password
+            - name: RABBITMQ_HOST
+              value: rabbitmq-svc
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_VHOST
+              value: awx
+            - name: MEMCACHED_HOST
+              value: "memcached-svc"
+            - name: MEMCACHED_PORT
+              value: "11211"
+          ports:
+            - containerPort: 8052
+          volumeMounts:
+            - name: awx-application-config
+              mountPath: "/etc/tower"
+              readOnly: true
+            - name: "awx-confd"
+              mountPath: "/etc/tower/conf.d/"
+              readOnly: true
+              
+        - image: ansible/awx_task:latest
+          name: awx-task
+          imagePullPolicy: Always
+          command:
+            - /usr/bin/launch_awx_task.sh
+          securityContext:
+            privileged: true
+          env:
+#            - name: AWX_SKIP_MIGRATIONS
+#              value: "1"
+            - name: DATABASE_USER
+              value: awx
+            - name: DATABASE_NAME
+              value: awx
+            - name: DATABASE_HOST
+              value: postgres
+            - name: DATABASE_PORT
+              value: "31699"
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "awx-secrets"
+                  key: pg_password
+            - name: AWX_ADMIN_USER
+              value: admin
+            - name: AWX_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "awx-secrets"
+                  key: admin_password
+            - name: RABBITMQ_USER
+              value: mvne
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "awx-secrets"
+                  key: rabbitmq_password
+            - name: RABBITMQ_HOST
+              value: rabbitmq-svc
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_VHOST
+              value: awx
+            - name: MEMCACHED_HOST
+              value: "memcached-svc.awx"
+            - name: MEMCACHED_PORT
+              value: "11211"
+          volumeMounts:
+            - name: awx-application-config
+              mountPath: "/etc/tower"
+              readOnly: true
+            - name: "awx-confd"
+              mountPath: "/etc/tower/conf.d/"
+              readOnly: true
+            - name: "ansible-cfg"
+              mountPath: "/etc/ansible/"
+              readOnly: true
+      volumes:
+        - name: awx-application-config
+          configMap:
+            name: awx-config
+            items:
+              - key: awx_settings
+                path: settings.py
+              - key: secret_key
+                path: SECRET_KEY
+        - name: "ansible-cfg"
+          configMap:
+            name: awx-config
+            items:
+              - key: ansible-cfg
+                path: ansible.cfg
+        - name: "awx-confd"
+          secret:
+            secretName: "awx-secrets"
+            items:
+              - key: confd_contents
+                path: 'secrets.py'
+
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: awx-svc
+spec:
+  selector:
+    app: awx
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    nodePort: 31001
+    targetPort: 8052
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: awx-hedless
+  labels:
+    app: awx
+spec:
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 8052
+  clusterIP: None
+  selector:
+    app: awx

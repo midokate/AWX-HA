@@ -1,0 +1,54 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: rabbitmq-deployement
+  labels:
+    app: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+        - image: rabbitmq:3.7.14-management-alpine
+          name: rabbitmq
+          env:
+          - name: RABBITMQ_DEFAULT_VHOST
+            value: awx
+          - name: RABBITMQ_ERLANG_COOKIE
+            value: cookiemonster
+          - name: RABBITMQ_DEFAULT_USER
+            value: mvne
+          - name: RABBITMQ_DEFAULT_PASS
+            value: polo123polo
+          - name: RABBITMQ_DEFAULT_VHOST
+            value: awx
+
+          livenessProbe:
+            exec:
+              command: ["rabbitmqctl", "status"]
+            initialDelaySeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["rabbitmqctl", "status"]
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-svc
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+  - protocol: TCP
+    port: 5672
+    targetPort: 5672

@@ -1,0 +1,31 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: memcached-deployement
+  labels:
+    app: memcached
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: memcached
+  template:
+    metadata:
+      labels:
+        app: memcached
+    spec:
+      containers:
+        - image: memcached:alpine
+          name: memcached
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: memcached-svc
+spec:
+  selector:
+    app: memcached
+  ports:
+  - protocol: TCP
+    port: 11211
+    targetPort: 11211

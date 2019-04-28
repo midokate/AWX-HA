@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  labels:
+    app: postgres
+data:
+  POSTGRES_DB: awx
+  POSTGRES_USER: awx
+  POSTGRES_PASSWORD: polo123polo
